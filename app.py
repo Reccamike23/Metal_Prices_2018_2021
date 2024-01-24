@@ -1,7 +1,4 @@
-import dash
-from dash import dcc
-from dash import html
-from dash.dependencies import Output, Input
+import streamlit as st
 import plotly.express as px
 import pandas as pd
 
@@ -9,7 +6,7 @@ import pandas as pd
 data = pd.read_csv("precious_metals_prices_2018_2021.csv")
 data["DateTime"] = pd.to_datetime(data["DateTime"], format="%Y-%m-%d %H:%M:%S")
 
-# Create a plotly plot for use by dcc.Graph().
+# Create a plotly plot for use by st.plotly_chart().
 fig = px.line(
     data,
     title="Precious Metal Prices 2018-2021",
@@ -18,112 +15,47 @@ fig = px.line(
     color_discrete_map={"Gold": "gold"}
 )
 
-app = dash.Dash(__name__)
-app.title = "Precious Metal Prices 2018-2021"
-server = app.server
+st.title("Precious Metal Prices 2018-2021")
 
-app.layout = html.Div(
-    id="app-container",
-    children=[
-        html.Div(
-            id="header-area",
-            children=[
-                html.H1(
-                    id="header-title",
-                    children="Precious Metal Prices",
+# Header Description
+st.write("The cost of precious metals between 2018 and 2021")
 
-                ),
-                html.P(
-                    id="header-description",
-                    children=("The cost of precious metals", html.Br(), "between 2018 and 2021"),
-                ),
-            ],
-        ),
-        html.Div(
-            id="menu-area",
-            children=[
-                html.Div(
-                    children=[
-                        html.Div(
-                            className="menu-title",
-                            children="Metal"
-                        ),
-                        dcc.Dropdown(
-                            id="metal-filter",
-                            className="dropdown",
-                            options=[{"label": metal, "value": metal} for metal in data.columns[1:]],
-                            clearable=False,
-                            value="Gold"
-                        )
-                    ]
-                ),
-                html.Div(
-                    children=[
-                        html.Div(
-                            className="menu-title",
-                            children="Date Range"
-                        ),
-                        dcc.DatePickerRange(
-                            id="date-range",
-                            min_date_allowed=data.DateTime.min().date(),
-                            max_date_allowed=data.DateTime.max().date(),
-                            start_date=data.DateTime.min().date(),
-                            end_date=data.DateTime.max().date()
-                        )
-                    ]
-                )
-            ]
-        ),
-        html.Div(
-            id="graph-container",
-            children=dcc.Graph(
-                id="price-chart",
-                figure=fig,
-                config={"displayModeBar": False}
-            ),
-        ),
-    ]
+# Metal Filter
+selected_metal = st.selectbox("Select Metal", data.columns[1:], index=0)
+
+# Date Range Filter
+start_date = st.date_input("Start Date", min_value=data["DateTime"].min().date(), max_value=data["DateTime"].max().date(), value=data["DateTime"].min().date())
+end_date = st.date_input("End Date", min_value=data["DateTime"].min().date(), max_value=data["DateTime"].max().date(), value=data["DateTime"].max().date())
+
+filtered_data = data.loc[(data.DateTime >= str(start_date)) & (data.DateTime <= str(end_date))]
+
+# Plotly Chart
+fig = px.line(
+    filtered_data,
+    title="Precious Metal Prices 2018-2021",
+    x="DateTime",
+    y=[selected_metal],
+    color_discrete_map={
+        "Platinum": "#E5E4E2",
+        "Gold": "gold",
+        "Silver": "silver",
+        "Palladium": "#CED0DD",
+        "Rhodium": "#E2E7E1",
+        "Iridium": "#3D3C3A",
+        "Ruthenium": "#C9CBC8"
+    }
 )
 
-
-@app.callback(
-    Output("price-chart", "figure"),
-    Input("metal-filter", "value"),
-    Input("date-range", "start_date"),
-    Input("date-range", "end_date")
+fig.update_layout(
+    template="plotly_dark",
+    xaxis_title="Date",
+    yaxis_title="Price (USD/oz)",
+    font=dict(
+        family="Verdana, sans-serif",
+        size=18,
+        color="white"
+    ),
 )
-def update_chart(metal, start_date, end_date):
-    filtered_data = data.loc[(data.DateTime >= start_date) & (data.DateTime <= end_date)]
-    # Create a plotly plot for use by dcc.Graph().
-    fig = px.line(
-        filtered_data,
-        title="Precious Metal Prices 2018-2021",
-        x="DateTime",
-        y=[metal],
-        color_discrete_map={
-            "Platinum": "#E5E4E2",
-            "Gold": "gold",
-            "Silver": "silver",
-            "Palladium": "#CED0DD",
-            "Rhodium": "#E2E7E1",
-            "Iridium": "#3D3C3A",
-            "Ruthenium": "#C9CBC8"
-        }
-    )
 
-    fig.update_layout(
-        template="plotly_dark",
-        xaxis_title="Date",
-        yaxis_title="Price (USD/oz)",
-        font=dict(
-            family="Verdana, sans-serif",
-            size=18,
-            color="white"
-        ),
-    )
-
-    return fig
-
-
-if __name__ == "__main__":
-    app.run_server(debug=True)
+# Display Plotly Chart
+st.plotly_chart(fig, use_container_width=True)
